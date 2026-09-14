@@ -36,81 +36,64 @@ def get_instance_state(ec2):
 
 def cmd_status(ec2):
     state, public_ip = get_instance_state(ec2)
-    print(f"The server({INSTANCE_ID}) is currently {state}")
+    print(f"The instance({INSTANCE_ID}) is currently {state}")
     if public_ip:
         print(f"The Public IP is {public_ip}.")
+    return state, public_ip
 
+#===START===
 def cmd_start(ec2):
     state, _ = get_instance_state(ec2)
 
+    #Check the state is 'stopped'
     if state != "stopped":
-        print(f"Can't start if the server ain't stopped. It's currently {state}")
-        if state == "running":
-            print("Get to work, maggot.")
-        elif state == "pending":
-            print("That means it's on its way. I'm loving the enthusiasm, just hold on a sec.")
-        elif state == "stopping":
-            print("Once I've confirmed the server is stopped, you can go ahead and start it again. You lil' bitch.")
-        else:
-            print("ERROR [69]! UNKNOWN STATE!! EVERYONE PANIC!!!")
-        return
+        return False, f"Can't start, instance is currently {state}"
 
-    print("Clocking in? Spinning up the server...")
+    print("Spinning up the instance...")
 
+    #Try to start:
     try:
         ec2.start_instances(InstanceIds=[INSTANCE_ID])
-    except ClientError as e:
-        print(f"Summin broke. Failed to start instance: {e}")
-        sys.exit(1)
-
-    print("Waiting for the server to be serving...")
-    waiter = ec2.get_waiter("instance_running")
-    try:
+        waiter = ec2.get_waiter("instance_running")
         waiter.wait(InstanceIds=[INSTANCE_ID])
-    except WaiterError as e:
-        print(f"We timed out, or maybe failed, while waiting for the server to serve: {e}")
-        sys.exit(1)
 
+    #If unsuccessful:
+    except (ClientError, WaiterError) as e:
+        return False, f"{e}"
+
+
+    #Return True when up
     state, public_ip = get_instance_state(ec2)
     print(f"Instance is now: {state}")
     if public_ip:
         print(f"Server should be reachable at this IP: {public_ip}")
     print("It might take a minute for Satisfactory to put its pants on. Give it a min and refresh if it's still showing as offline in the Server Manager.")
+    return True, f"Instance is now {state}, reachable at {public_ip}"
 
+#Could use yield from bot to provide multiple returns? Stetch goal maybe.
 
+#====STOP===== Set this one up like start command
 def cmd_stop(ec2):
     state, _ = get_instance_state(ec2)
 
-    if state != "running":
-        print(f"Can't stop if the server ain't running. It's currently {state}")
-        if state == "stopped":
-            print("So it's already down.")
-        elif state == "pending":
-            print("It'll be up in a mo. Try again once it's running.")
-        elif state == "stopping":
-            print("It'll be stopped in a mo.")
-        else:
-            print("ERROR [69]! UNKNOWN STATE!! EVERYONE PANIC!!!")  
-        return
+    #Check it's in the correct state to be stopped
+    if state != "running": 
+        return False, f"Can't stop, instance is currently {state}"
 
-    print("Stopping the server...")
+    #Print to console
+    print("Stopping the instance...")
+
+    #Try to stop instance:
     try:
         ec2.stop_instances(InstanceIds=[INSTANCE_ID])
-    except ClientError as e:
-        print(f"Failed to stop instance: {e}")
-        sys.exit(1)
-
-    print("Waiting for the server to stop serving...")
-    waiter = ec2.get_waiter("instance_stopped")
-    try:
+        waiter = ec2.get_waiter("instance_stopped")
         waiter.wait(InstanceIds=[INSTANCE_ID])
-    except WaiterError as e:
-        print("Wow, the server literally couldn't stop serving when it tried.")
-        print(f"It timed out, or maybe failed: {e}")
-        sys.exit(1)
+    #If unsuccessful:
+    except (ClientError, WaiterError) as e:
+        return False, f"Failed to stop instance: {e}"
 
     state, _ = get_instance_state(ec2)
-    print(f"Instance is now: {state}")
+    return True, f"Instance is now {state}."
 
 def main():
     parser = argparse.ArgumentParser(description="Control the Satisfactory EC2 Instance")
