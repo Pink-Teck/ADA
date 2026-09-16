@@ -23,7 +23,8 @@ INSTANCE_ID = "i-0a2c3c2f99e224951"
 #================
 
 def get_ec2_client():
-    session = boto3.Session(profile_name=AWS_PROFILE)
+    #session = boto3.Session(profile_name=AWS_PROFILE) #needed for local testing
+    session = boto3.Session()
     return session.client("ec2", region_name=AWS_REGION)
 
 def get_instance_state(ec2):
