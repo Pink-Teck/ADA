@@ -27,6 +27,8 @@ def get_ec2_client():
     session = boto3.Session()
     return session.client("ec2", region_name=AWS_REGION)
 
+    #TEST COMMENT
+
 def get_instance_state(ec2):
     """Return (state_name, public_ip_or_None) for the configured instance."""
     response = ec2.describe_instances(InstanceIds=[INSTANCE_ID])
