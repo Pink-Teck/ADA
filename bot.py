@@ -82,15 +82,19 @@ async def autoStop():
     
     channel = client.get_channel(int(BOT_CHANNEL))
 
-    #Var
-    wait_time = 3
+    #Vars
+    wait_time = 10 #This should never be less than 4
+    inactivity_alert = (wait_time - 1)
+
+    activity = True
+
     stop_counter = wait_time
     no_response_counter = 0
     failed_stop_counter = 0
     stop = False
 
     #Give players a few mins to connect before checking for empty session
-    await asyncio.sleep(120)
+    await asyncio.sleep(300)
 
     while not stop:
         try:
@@ -108,12 +112,20 @@ async def autoStop():
                 no_response_counter = 0
                 if response > 0:
                     stop_counter = wait_time
+                    if not activity:
+                        activity = True
+                        await channel.send("New connection detected, cancelling autoshutdown")
                 else:
+                    activity = False
                     stop_counter -= 1
-                    await channel.send(f"DEBUG: stop_counter = {stop_counter}")
+                    if stop_counter == inactivity_alert:
+                        await channel.send(f":zzz: No connections detected. Autoshutdown in {stop_counter} minutes.")
+                    if stop_counter == 2:
+                        await channel.send(f":zzz: No connections detected. Autoshutdown in {stop_counter} minutes.")
 
                     #Stop counter hits 0 (10 mins) and sends stop command
                     if stop_counter <= 0:
+                        await channel.send(":orange_circle: **Shutting down server, please wait...**")
                         result, message = await asyncio.to_thread(server.cmd_stop, ec2_client)
                         if result:
                             failed_stop_counter = 0
